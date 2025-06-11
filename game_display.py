@@ -10,10 +10,14 @@ class GameDisplay:
         # Animation paths
         self.idle_video_path = "Assets/mageIdle.mkv"
         self.attack_video_path = "Assets/MageAttack.mkv"
+        self.mage_defeat_video_path = "Assets/mageDefeat.mkv"  # User wins
+        self.mage_victory_video_path = "Assets/mageVictory.mkv"  # Mage wins
         
         # Video captures
         self.idle_cap = None
         self.attack_cap = None
+        self.defeat_cap = None
+        self.victory_cap = None
         
         # Camera settings
         self.camera_width = 480  # Bigger camera size
@@ -22,7 +26,7 @@ class GameDisplay:
         self.camera_y = frame_height - self.camera_height - 20
         
         # Animation state
-        self.current_animation = "idle"  # "idle" or "attack"
+        self.current_animation = "idle"  # "idle", "attack", "defeat", "victory"
         self.attack_start_time = None
         self.attack_duration = None  # Will be set based on video length
         self.last_frame_time = 0
@@ -32,7 +36,7 @@ class GameDisplay:
         self.load_animations()
     
     def load_animations(self):
-        """Load both idle and attack animations"""
+        """Load all animations including defeat and victory"""
         # Load idle animation
         self.idle_cap = cv2.VideoCapture(self.idle_video_path)
         if not self.idle_cap.isOpened():
@@ -51,6 +55,16 @@ class GameDisplay:
                 print(f"Attack animation duration: {self.attack_duration:.2f} seconds")
             else:
                 self.attack_duration = 2.0  # Fallback duration
+        
+        # Load defeat animation (user wins)
+        self.defeat_cap = cv2.VideoCapture(self.mage_defeat_video_path)
+        if not self.defeat_cap.isOpened():
+            print(f"Warning: Could not open {self.mage_defeat_video_path}")
+        
+        # Load victory animation (mage wins)
+        self.victory_cap = cv2.VideoCapture(self.mage_victory_video_path)
+        if not self.victory_cap.isOpened():
+            print(f"Warning: Could not open {self.mage_victory_video_path}")
     
     def get_animation_frame(self):
         """Get the current animation frame based on state"""
@@ -80,6 +94,20 @@ class GameDisplay:
                 # Attack animation finished, switch back to idle
                 self.return_to_idle()
                 ret, frame = self.idle_cap.read()
+        elif self.current_animation == "defeat" and self.defeat_cap and self.defeat_cap.isOpened():
+            # Play defeat animation (user wins)
+            ret, frame = self.defeat_cap.read()
+            if not ret:
+                # Loop defeat animation
+                self.defeat_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ret, frame = self.defeat_cap.read()
+        elif self.current_animation == "victory" and self.victory_cap and self.victory_cap.isOpened():
+            # Play victory animation (mage wins)
+            ret, frame = self.victory_cap.read()
+            if not ret:
+                # Loop victory animation
+                self.victory_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ret, frame = self.victory_cap.read()
         else:
             # Use idle animation
             if self.idle_cap and self.idle_cap.isOpened():
@@ -320,9 +348,112 @@ class GameDisplay:
         cv2.putText(display, text, (mage_x + 10, mage_y + bar_height - 7), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
     
+    def create_win_defeat_screen(self, result, player_hp, mage_hp, round_num):
+        """Create a win/defeat screen using video animations"""
+        # Don't override animation state - it should already be set correctly
+        if result == "player":
+            # Player defeated (mage wins)
+            result_text = "DEFEAT"
+            result_color = (0, 0, 255)  # Red
+            subtitle = "The mage has defeated you!"
+        elif result == "mage":
+            # Mage defeated (player wins)
+            result_text = "VICTORY"
+            result_color = (0, 255, 0)  # Green
+            subtitle = "You have defeated the mage!"
+        else:
+            # Fallback
+            result_text = "GAME OVER"
+            result_color = (255, 255, 0)  # Yellow
+            subtitle = "The battle has ended!"
+        
+        # Get the animation frame as background
+        display = self.get_animation_frame()
+        if display is None:
+            # Fallback: create a dark background
+            display = np.zeros((self.frame_height, self.frame_width, 3), dtype=np.uint8)
+            display[:] = (20, 20, 30)
+        
+        # Semi-transparent overlay for the UI elements
+        overlay = display.copy()
+        cv2.rectangle(overlay, (0, 0), (self.frame_width, self.frame_height), (0, 0, 0), -1)
+        cv2.addWeighted(overlay, 0.3, display, 0.7, 0, display)
+        
+        # Draw main result text with glow effect
+        text_size = cv2.getTextSize(result_text, cv2.FONT_HERSHEY_DUPLEX, 4.0, 6)[0]
+        text_x = (self.frame_width - text_size[0]) // 2
+        text_y = self.frame_height // 2 - 50
+        
+        # Glow effect
+        for g in range(8, 0, -2):
+            glow_color = tuple(int(c * 0.3) for c in result_color)
+            cv2.putText(display, result_text, (text_x + g, text_y + g), 
+                       cv2.FONT_HERSHEY_DUPLEX, 4.0, glow_color, 6, cv2.LINE_AA)
+        
+        # Main text
+        cv2.putText(display, result_text, (text_x, text_y), 
+                   cv2.FONT_HERSHEY_DUPLEX, 4.0, result_color, 6, cv2.LINE_AA)
+        
+        # Draw subtitle
+        subtitle_size = cv2.getTextSize(subtitle, cv2.FONT_HERSHEY_SIMPLEX, 1.5, 3)[0]
+        subtitle_x = (self.frame_width - subtitle_size[0]) // 2
+        subtitle_y = text_y + 100
+        
+        cv2.putText(display, subtitle, (subtitle_x, subtitle_y), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 3, cv2.LINE_AA)
+        
+        # Draw final stats
+        stats_y = subtitle_y + 80
+        stats_text = f"Final Round: {round_num} | Player HP: {max(0, player_hp)} | Mage HP: {max(0, mage_hp)}"
+        stats_size = cv2.getTextSize(stats_text, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 2)[0]
+        stats_x = (self.frame_width - stats_size[0]) // 2
+        
+        cv2.putText(display, stats_text, (stats_x, stats_y), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1.0, (200, 200, 200), 2, cv2.LINE_AA)
+        
+        # Draw instructions
+        instructions = [
+            "Press ENTER to play again",
+            "Press Q to quit"
+        ]
+        
+        for i, instruction in enumerate(instructions):
+            inst_size = cv2.getTextSize(instruction, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 2)[0]
+            inst_x = (self.frame_width - inst_size[0]) // 2
+            inst_y = self.frame_height - 100 + i * 40
+            
+            # Background for instruction
+            cv2.rectangle(display, (inst_x - 20, inst_y - inst_size[1] - 10), 
+                         (inst_x + inst_size[0] + 20, inst_y + 10), (0, 0, 0), -1)
+            cv2.rectangle(display, (inst_x - 20, inst_y - inst_size[1] - 10), 
+                         (inst_x + inst_size[0] + 20, inst_y + 10), (255, 255, 255), 2)
+            
+            cv2.putText(display, instruction, (inst_x, inst_y), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
+        
+        return display
+    
     def cleanup(self):
         """Clean up resources"""
         if self.idle_cap:
             self.idle_cap.release()
         if self.attack_cap:
-            self.attack_cap.release() 
+            self.attack_cap.release()
+        if self.defeat_cap:
+            self.defeat_cap.release()
+        if self.victory_cap:
+            self.victory_cap.release()
+    
+    def start_defeat_animation(self):
+        """Start the defeat animation (user wins)"""
+        self.current_animation = "defeat"
+        # Reset defeat video to beginning
+        if self.defeat_cap and self.defeat_cap.isOpened():
+            self.defeat_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    
+    def start_victory_animation(self):
+        """Start the victory animation (mage wins)"""
+        self.current_animation = "victory"
+        # Reset victory video to beginning
+        if self.victory_cap and self.victory_cap.isOpened():
+            self.victory_cap.set(cv2.CAP_PROP_POS_FRAMES, 0) 

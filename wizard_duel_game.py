@@ -192,10 +192,52 @@ while player_hp > 0 and mage_hp > 0:
     if game_over_status == "player":
         print("\nYou have been defeated!")
         send_spell_to_unity("PlayerDead")
+        
+        # Set the victory animation (mage wins) before showing screen
+        game_display.start_victory_animation()
+        
+        # Show defeat screen
+        print("Showing defeat screen...")
+        while True:
+            defeat_display = game_display.create_win_defeat_screen("player", player_hp, mage_hp, round_num)
+            cv2.imshow("Wizard Duel - Game Over", defeat_display)
+            
+            key = cv2.waitKey(8) & 0xFF
+            if key == 13:  # Enter key - play again
+                print("Restarting game...")
+                # Reset game state
+                player_hp = 100
+                mage_hp = 100
+                round_num = 1
+                game_display.return_to_idle()
+                break
+            elif key == ord('q'):  # Q key - quit
+                break
         break
     elif game_over_status == "mage":
         print("\nThe mage has been defeated! YOU WIN!")
         send_spell_to_unity("MageDead")
+        
+        # Set the defeat animation (user wins) before showing screen
+        game_display.start_defeat_animation()
+        
+        # Show victory screen
+        print("Showing victory screen...")
+        while True:
+            victory_display = game_display.create_win_defeat_screen("mage", player_hp, mage_hp, round_num)
+            cv2.imshow("Wizard Duel - Victory!", victory_display)
+            
+            key = cv2.waitKey(8) & 0xFF
+            if key == 13:  # Enter key - play again
+                print("Restarting game...")
+                # Reset game state
+                player_hp = 100
+                mage_hp = 100
+                round_num = 1
+                game_display.return_to_idle()
+                break
+            elif key == ord('q'):  # Q key - quit
+                break
         break
 
     # Brief idle period between rounds (mage stays in idle)
