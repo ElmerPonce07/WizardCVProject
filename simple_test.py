@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-Simple test to verify title screen and camera integration
+Simple test to verify the main game loop with attack and idle cycling
 """
 
 import cv2
 import time
 
-def main():
-    print("🧪 Simple Integration Test 🧪")
-    print("=" * 30)
+def test_game_loop():
+    """Test the main game loop with attack and idle cycling"""
+    print("🎮 Testing Game Loop with Attack/Idle Cycling 🎮")
+    print("=" * 50)
     
-    # Initialize camera first
+    # Initialize camera
     print("1. Initializing camera...")
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -19,53 +20,97 @@ def main():
     
     print("✅ Camera initialized successfully!")
     
-    # Test title screen
-    print("2. Testing title screen...")
-    from title_screen import TitleScreen
+    # Initialize game display
+    print("2. Initializing game display...")
+    from game_display import GameDisplay
     
-    title_screen = TitleScreen()
-    difficulty = title_screen.show()
+    game_display = GameDisplay(frame_width=1920, frame_height=1080)
+    print("✅ Game display initialized!")
     
-    print(f"✅ Title screen completed. Selected: {difficulty}")
-    
-    if difficulty == "quit":
-        print("User quit, cleaning up...")
-        cap.release()
-        cv2.destroyAllWindows()
-        return
-    
-    # Test camera still works after title screen
-    print("3. Testing camera after title screen...")
-    
-    # Try to read a few frames
-    for i in range(3):
-        ret, frame = cap.read()
-        if ret:
-            print(f"✅ Frame {i+1}: {frame.shape}")
-        else:
-            print(f"❌ Frame {i+1}: Failed to read")
-            break
-    
-    # Show a simple camera feed for a few seconds
-    print("4. Showing camera feed for 3 seconds...")
-    start_time = time.time()
-    while time.time() - start_time < 3:
-        ret, frame = cap.read()
-        if ret:
-            cv2.putText(frame, "Camera working!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.imshow("Camera Test", frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        else:
-            print("❌ Failed to read camera frame!")
-            break
+    # Simulate 3 rounds of the game
+    for round_num in range(1, 4):
+        print(f"\n--- ROUND {round_num} ---")
+        
+        # Simulate mage casting a spell
+        mage_spell = "FIRE" if round_num == 1 else "WATER" if round_num == 2 else "EARTH"
+        print(f"Mage casts: {mage_spell}")
+        
+        # Start attack animation
+        reaction_time = 2.5
+        game_display.start_attack_animation(reaction_time)
+        print(f"Attack animation started for {reaction_time}s")
+        
+        # Attack phase
+        start_time = time.time()
+        while time.time() - start_time < reaction_time:
+            ret, img = cap.read()
+            if ret:
+                remaining_time = reaction_time - (time.time() - start_time)
+                
+                display = game_display.create_game_display(
+                    camera_frame=img,
+                    mage_spell=mage_spell,
+                    player_spell="WATER",
+                    countdown=remaining_time,
+                    player_hp=100,
+                    mage_hp=90,
+                    round_num=round_num
+                )
+                
+                cv2.imshow(f"Round {round_num} - Attack", display)
+                
+                # Print animation state
+                if game_display.current_animation == "attack":
+                    print(f"  Attack phase: {remaining_time:.1f}s remaining")
+                else:
+                    print(f"  Unexpected: {game_display.current_animation}")
+                
+                if cv2.waitKey(8) & 0xFF == ord('q'):
+                    cap.release()
+                    game_display.cleanup()
+                    cv2.destroyAllWindows()
+                    return
+        
+        # Return to idle
+        print("Returning to idle...")
+        game_display.return_to_idle()
+        
+        # Idle phase
+        idle_start_time = time.time()
+        idle_duration = 1.5
+        
+        while time.time() - idle_start_time < idle_duration:
+            ret, img = cap.read()
+            if ret:
+                display = game_display.create_game_display(
+                    camera_frame=img,
+                    player_hp=100,
+                    mage_hp=90,
+                    round_num=round_num
+                )
+                
+                cv2.imshow(f"Round {round_num} - Idle", display)
+                
+                # Print animation state
+                if game_display.current_animation == "idle":
+                    print(f"  Idle phase: {idle_duration - (time.time() - idle_start_time):.1f}s remaining")
+                else:
+                    print(f"  Unexpected: {game_display.current_animation}")
+                
+                if cv2.waitKey(8) & 0xFF == ord('q'):
+                    cap.release()
+                    game_display.cleanup()
+                    cv2.destroyAllWindows()
+                    return
+        
+        print(f"Round {round_num} completed!")
     
     # Cleanup
     cap.release()
+    game_display.cleanup()
     cv2.destroyAllWindows()
     
-    print("✅ Test completed successfully!")
-    print("You can now run the full game!")
+    print("\n✅ Game loop test completed successfully!")
 
 if __name__ == "__main__":
-    main() 
+    test_game_loop() 

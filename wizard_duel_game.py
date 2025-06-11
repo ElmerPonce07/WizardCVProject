@@ -10,6 +10,7 @@ from gameLogic import (
     get_reaction_time,
 )
 from title_screen import TitleScreen
+from game_display import GameDisplay
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
@@ -40,6 +41,13 @@ if not cap.isOpened():
     print("Error: Could not open camera!")
     exit()
 
+# Get camera dimensions
+frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+# Initialize game display
+game_display = GameDisplay(frame_width=1920, frame_height=1080)
+
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands()
 mp_draw = mp.solutions.drawing_utils
@@ -62,6 +70,7 @@ difficulty = title_screen.show()
 
 if difficulty == "quit":
     cap.release()
+    game_display.cleanup()
     cv2.destroyAllWindows()
     exit()
 
@@ -75,11 +84,25 @@ while True:
     if not success:
         print("Failed to grab frame. Exiting.")
         cap.release()
+        game_display.cleanup()
         cv2.destroyAllWindows()
         exit()
-    cv2.putText(img, "Press any key to START", (50, int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) // 2), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2, cv2.LINE_AA)
-    cv2.imshow("Wizard Duel - Get Ready!", img)
-    if cv2.waitKey(10) != -1: # Wait for any key press
+    
+    # Create a simple ready screen
+    ready_display = game_display.create_game_display(
+        camera_frame=img,
+        player_hp=player_hp,
+        mage_hp=mage_hp,
+        round_num=round_num
+    )
+    cv2.putText(ready_display, "Press any key to START", (50, frame_height // 2), 
+               cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2, cv2.LINE_AA)
+    
+    cv2.imshow("Wizard Duel - Get Ready!", ready_display)
+    
+    # Use consistent frame timing (120 FPS for 120 FPS lock)
+    key = cv2.waitKey(8) & 0xFF  # ~120 FPS
+    if key != -1: # Wait for any key press
         break
 
 print("\nWizard Duel Begins!")
@@ -90,15 +113,16 @@ while player_hp > 0 and mage_hp > 0:
     
     mage_spell = get_random_spell()
     print(f"The mage casts: {mage_spell.upper()}! Counter it!")
+    
+    # Start mage attack animation
+    game_display.start_attack_animation(reaction_time)
+    attack_start_time = time.time()
 
     player_spell = None
-    start_time = time.time()
+    reaction_start_time = time.time()
 
-    # Get frame dimensions for text placement
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-
-    while time.time() - start_time < reaction_time:
+    # Play the attack animation synchronized with reaction time
+    while time.time() - reaction_start_time < reaction_time:
         success, img = cap.read()
         if not success:
             print("Failed to grab frame from camera.")
@@ -106,52 +130,53 @@ while player_hp > 0 and mage_hp > 0:
             break
 
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
-        # Display Mage's spell and countdown
-        remaining_time = reaction_time - (time.time() - start_time)
-        countdown_text = f"Counter in: {remaining_time:.1f}s"
-        mage_spell_text = f"Mage casts: {mage_spell.upper()}"
-
-        cv2.putText(img, mage_spell_text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
-        cv2.putText(img, countdown_text, (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2, cv2.LINE_AA)
-
-        # Draw Player Health Bar (Bottom Left)
-        player_bar_x = 20
-        player_bar_y = frame_height - BAR_HEIGHT - 20
-        draw_health_bar(img, player_hp, MAX_HP, player_bar_x, player_bar_y, "Player", HP_BAR_COLOR_PLAYER)
-
-        # Draw Mage Health Bar (Bottom Right)
-        mage_bar_x = frame_width - BAR_WIDTH - 20
-        mage_bar_y = frame_height - BAR_HEIGHT - 20
-        draw_health_bar(img, mage_hp, MAX_HP, mage_bar_x, mage_bar_y, "Mage", HP_BAR_COLOR_MAGE)
-
         results = hands.process(img_rgb)
 
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                mp_draw.draw_landmarks(img, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-                fingers_up = get_fingers_up(hand_landmarks)
+        # Gather all hand landmarks for display
+        hand_landmarks = results.multi_hand_landmarks if results.multi_hand_landmarks else None
+
+        # Always use the latest detected spell (not just the first)
+        if hand_landmarks:
+            for handLms in hand_landmarks:
+                mp_draw.draw_landmarks(img, handLms, mp_hands.HAND_CONNECTIONS)
+                fingers_up = get_fingers_up(handLms)
                 detected_spell_this_frame = get_spells_from_fingers(fingers_up)
-
                 if detected_spell_this_frame:
-                    player_spell = detected_spell_this_frame # Update the "locked" spell for the round
-                
-                # Display the current "locked" player spell
-                player_display_text = f"Your Spell: {player_spell.upper() if player_spell else '...'}"
-                cv2.putText(img, player_display_text, (frame_width - 300, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
+                    player_spell = detected_spell_this_frame
 
+        # Calculate remaining time for player reaction
+        remaining_time = reaction_time - (time.time() - reaction_start_time)
 
-        cv2.imshow("Wizard Duel - Cast YOUR SPELL!", img)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        # Create the game display with all elements (including spell announcement)
+        game_frame = game_display.create_game_display(
+            camera_frame=img,
+            mage_spell=mage_spell,  # This should show the spell announcement
+            player_spell=player_spell,
+            countdown=remaining_time,
+            player_hp=player_hp,
+            mage_hp=mage_hp,
+            round_num=round_num,
+            hand_landmarks=hand_landmarks,
+            mp_draw=mp_draw,
+            mp_hands=mp_hands
+        )
+
+        # Show the complete game display with consistent timing
+        cv2.imshow("Wizard Duel", game_frame)
+        
+        # Use consistent frame timing (120 FPS for 120 FPS lock)
+        key = cv2.waitKey(8) & 0xFF  # ~120 FPS
+        if key == ord('q'):
             player_hp = 0
             break
 
-    cv2.destroyAllWindows()
+    # Attack phase is over - animation system handles transition to idle automatically
 
+    # Now check if player cast a spell within the reaction time
     if player_spell:
         send_spell_to_unity(player_spell)
         print(f"You cast: {player_spell.upper()}")
-    elif player_hp > 0:
+    else:
         print("You failed to cast a spell in time!")
 
     # Evaluate the round
@@ -173,8 +198,50 @@ while player_hp > 0 and mage_hp > 0:
         send_spell_to_unity("MageDead")
         break
 
+    # Brief idle period between rounds (mage stays in idle)
+    print("Preparing for next round...")
+    idle_start_time = time.time()
+    idle_duration = 1.5  # 1.5 seconds of idle between attacks
+    
+    while time.time() - idle_start_time < idle_duration:
+        success, img = cap.read()
+        if not success:
+            print("Failed to grab frame during idle phase.")
+            break
+            
+        # Create idle display with preparation message
+        game_frame = game_display.create_game_display(
+            camera_frame=img,
+            player_hp=player_hp,
+            mage_hp=mage_hp,
+            round_num=round_num,
+            hand_landmarks=None,
+            mp_draw=mp_draw,
+            mp_hands=mp_hands
+        )
+        
+        # Add preparation message to the display
+        remaining_idle = idle_duration - (time.time() - idle_start_time)
+        cv2.putText(game_frame, f"Preparing for next round... ({remaining_idle:.1f}s)", (50, 200), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3, cv2.LINE_AA)
+        
+        # Use consistent window name
+        cv2.imshow("Wizard Duel", game_frame)
+        
+        # Use consistent frame timing (120 FPS)
+        key = cv2.waitKey(8) & 0xFF
+        if key == ord('q'):
+            player_hp = 0
+            break
+        
+        # Safety check to prevent infinite loop
+        if time.time() - idle_start_time > 5.0:  # Max 5 seconds
+            print("Idle phase timeout, continuing to next round...")
+            break
+
+    print(f"Idle phase completed, starting round {round_num + 1}")
     round_num += 1
-    time.sleep(1.2)
 
 cap.release()
+game_display.cleanup()
 cv2.destroyAllWindows()

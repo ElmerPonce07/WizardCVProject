@@ -47,7 +47,7 @@ class TitleScreen:
         """Draw the main title with a magical effect"""
         # Create a gradient background for the title area
         title_height = 120
-        title_y = 50
+        title_y = 50  # Keep banner position the same
         
         # Draw semi-transparent overlay for title area
         overlay = image.copy()
@@ -56,21 +56,33 @@ class TitleScreen:
         
         # Draw title with shadow effect
         title_size = cv2.getTextSize(self.title, cv2.FONT_HERSHEY_DUPLEX, 2.5, 4)[0]
-        title_x = (self.frame_width - title_size[0]) // 2
+        
+        # Calculate box dimensions to perfectly center the title
+        box_width = title_size[0] + 40  # 20 pixels padding on each side
+        box_height = title_size[1] + 20  # 10 pixels padding on top and bottom
+        box_x = (self.frame_width - box_width) // 2
+        box_y = title_y + 20  # Move the text box down within the banner
+        
+        # Calculate text position to be perfectly centered within the box
+        text_x = box_x + (box_width - title_size[0]) // 2
+        text_y = box_y + (box_height + title_size[1]) // 2
+        
+        # Draw title box with outline
+        cv2.rectangle(image, (box_x, box_y), (box_x + box_width, box_y + box_height), (255, 215, 0), 2)
         
         # Shadow
-        cv2.putText(image, self.title, (title_x + 3, title_y + 50), 
+        cv2.putText(image, self.title, (text_x + 3, text_y), 
                    cv2.FONT_HERSHEY_DUPLEX, 2.5, (50, 50, 50), 4, cv2.LINE_AA)
         # Main text
-        cv2.putText(image, self.title, (title_x, title_y + 50), 
+        cv2.putText(image, self.title, (text_x, text_y), 
                    cv2.FONT_HERSHEY_DUPLEX, 2.5, (255, 215, 0), 4, cv2.LINE_AA)
         
         # Add magical sparkle effect
         sparkle_color = (255, 255, 255)
         sparkle_positions = [
-            (title_x - 30, title_y + 20),
-            (title_x + title_size[0] + 30, title_y + 20),
-            (title_x + title_size[0] // 2, title_y - 10)
+            (box_x - 30, box_y + box_height // 2),
+            (box_x + box_width + 30, box_y + box_height // 2),
+            (box_x + box_width // 2, box_y - 10)
         ]
         
         for pos in sparkle_positions:
@@ -78,64 +90,97 @@ class TitleScreen:
             cv2.circle(image, pos, 6, sparkle_color, 1)
     
     def draw_difficulty_options(self, image):
-        """Draw the difficulty selection options"""
+        """Draw the difficulty selection options with a glow effect for the selected one"""
         options_start_y = 250
-        option_height = 60
-        option_spacing = 20
+        option_height = 50  # Reduced from 60
+        option_spacing = 15  # Increased slightly to prevent overlap
         
         # Draw semi-transparent background for options
         overlay = image.copy()
         cv2.rectangle(overlay, (50, options_start_y - 20), 
                      (self.frame_width - 50, options_start_y + len(self.difficulties) * (option_height + option_spacing) + 20), 
-                     (0, 0, 0), -1)
-        cv2.addWeighted(overlay, 0.6, image, 0.4, 0, image)
+                     (30, 30, 60), -1)
+        cv2.addWeighted(overlay, 0.7, image, 0.3, 0, image)
         
         for i, difficulty in enumerate(self.difficulties):
             y_pos = options_start_y + i * (option_height + option_spacing)
+            text = f"{difficulty['name']}"
+            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.5, 3)[0]
             
-            # Selection indicator
+            # Calculate box dimensions to perfectly center the text
+            box_width = text_size[0] + 30  # 15 pixels padding on each side
+            box_height = option_height
+            box_x = (self.frame_width - box_width) // 2
+            box_y = y_pos
+            
+            # Calculate text position to be perfectly centered within the box
+            text_x = box_x + (box_width - text_size[0]) // 2
+            text_y = box_y + (box_height + text_size[1]) // 2  # Center vertically within the box
+            
             if i == self.selected_difficulty:
-                # Draw selection box
-                cv2.rectangle(image, (40, y_pos - 10), (self.frame_width - 40, y_pos + option_height + 10), 
-                             (255, 255, 255), 2)
-                # Draw selection arrow
-                cv2.putText(image, ">", (60, y_pos + 35), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 2)
-            
-            # Difficulty text
-            text = f"{difficulty['key']}. {difficulty['name']}"
-            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 2)[0]
-            text_x = (self.frame_width - text_size[0]) // 2
+                # Smaller glow effect: draw smaller colored rectangle behind
+                glow_color = tuple(int(c * 0.7 + 180) for c in difficulty['color'])
+                for g in range(8, 0, -2):  # Reduced glow size
+                    cv2.rectangle(image, (box_x-g, box_y-g), (box_x+box_width+g, box_y+box_height+g), glow_color, -1)
+                # Perfectly centered selection box
+                cv2.rectangle(image, (box_x, box_y), (box_x+box_width, box_y+box_height), (255,255,255), 2)
             
             # Shadow
-            cv2.putText(image, text, (text_x + 2, y_pos + 35), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 1.2, (50, 50, 50), 2, cv2.LINE_AA)
+            cv2.putText(image, text, (text_x+2, text_y), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (40,40,40), 3, cv2.LINE_AA)
             # Main text
-            cv2.putText(image, text, (text_x, y_pos + 35), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 1.2, difficulty['color'], 2, cv2.LINE_AA)
+            cv2.putText(image, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 1.5, difficulty['color'], 3, cv2.LINE_AA)
     
     def draw_instructions(self, image):
-        """Draw instructions at the bottom"""
+        """Draw smaller instructions at the bottom with proper centering and outline"""
         instructions = [
-            "Use UP/DOWN arrows or W/S keys to select difficulty",
+            "Use W/S to select difficulty",
             "Press ENTER to start the game",
             "Press Q to quit"
         ]
         
-        y_start = self.frame_height - 100
+        # Calculate total height needed for all instructions
+        instruction_height = 18  # Height per instruction
+        total_height = len(instructions) * instruction_height
+        y_start = self.frame_height - 70  # Moved up slightly
+        
+        # Calculate the widest instruction for centering
+        max_width = 0
+        for instruction in instructions:
+            text_size = cv2.getTextSize(instruction, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
+            max_width = max(max_width, text_size[0])
+        
+        # Calculate box dimensions
+        box_width = max_width + 40  # 20 pixels padding on each side
+        box_height = total_height + 20  # 10 pixels padding on top and bottom
+        box_x = (self.frame_width - box_width) // 2
+        box_y = y_start - 10
+        
+        # Semi-transparent background
+        overlay = image.copy()
+        cv2.rectangle(overlay, (box_x, box_y), (box_x + box_width, box_y + box_height), (30,30,60), -1)
+        cv2.addWeighted(overlay, 0.7, image, 0.3, 0, image)
+        
+        # Draw outline around instructions
+        cv2.rectangle(image, (box_x, box_y), (box_x + box_width, box_y + box_height), (220, 220, 255), 1)
+        
         for i, instruction in enumerate(instructions):
-            y_pos = y_start + i * 25
-            cv2.putText(image, instruction, (50, y_pos), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1, cv2.LINE_AA)
-    
+            text_size = cv2.getTextSize(instruction, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
+            
+            # Calculate text position to be perfectly centered within the box
+            text_x = box_x + (box_width - text_size[0]) // 2
+            text_y = box_y + 15 + i * instruction_height  # Start 15 pixels from top of box
+            
+            cv2.putText(image, instruction, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 255), 1, cv2.LINE_AA)
+
     def handle_input(self, key):
-        """Handle keyboard input for menu navigation"""
-        if key == ord('w') or key == 82:  # W key or up arrow
+        """Handle keyboard input for menu navigation (W/S/Enter only)"""
+        if key == ord('w'):
             self.selected_difficulty = (self.selected_difficulty - 1) % len(self.difficulties)
-        elif key == ord('s') or key == 84:  # S key or down arrow
+        elif key == ord('s'):
             self.selected_difficulty = (self.selected_difficulty + 1) % len(self.difficulties)
         elif key == 13:  # Enter key
             return self.difficulties[self.selected_difficulty]['name'].lower()
-        elif key == ord('q'):  # Q key
+        elif key == ord('q'):
             return "quit"
         return None
     
