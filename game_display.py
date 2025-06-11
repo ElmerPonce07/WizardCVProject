@@ -166,9 +166,16 @@ class GameDisplay:
         if camera_frame is not None:
             camera_resized = cv2.resize(camera_frame, (self.camera_width, self.camera_height))
             # Draw hand tracking on the user camera if landmarks are provided
+            # Show only finger tip dots, no connecting lines
             if hand_landmarks is not None and mp_draw is not None and mp_hands is not None:
                 for handLms in hand_landmarks:
-                    mp_draw.draw_landmarks(camera_resized, handLms, mp_hands.HAND_CONNECTIONS)
+                    # Draw only the finger tip landmarks (dots) without connections
+                    for landmark in handLms.landmark:
+                        # Convert normalized coordinates to pixel coordinates
+                        x = int(landmark.x * self.camera_width)
+                        y = int(landmark.y * self.camera_height)
+                        # Draw small dots for finger tips
+                        cv2.circle(camera_resized, (x, y), 2, (0, 255, 0), -1)
             
             # Place camera frame
             display[self.camera_y:self.camera_y + self.camera_height, 
@@ -208,17 +215,36 @@ class GameDisplay:
             x = (self.frame_width - text_size[0]) // 2
             y = 150
             
-            # Simple background with border
+            # Get spell-specific colors
+            if mage_spell.upper() == "FIRE":
+                text_color = (0, 0, 255)  # Red (BGR)
+                glow_color = (50, 0, 0)   # Dark red glow
+                border_color = (0, 0, 255)  # Red border
+            elif mage_spell.upper() == "WATER":
+                text_color = (255, 0, 0)  # Blue (BGR)
+                glow_color = (0, 0, 50)   # Dark blue glow
+                border_color = (255, 0, 0)  # Blue border
+            elif mage_spell.upper() == "EARTH":
+                text_color = (19, 69, 139)  # Brown (BGR)
+                glow_color = (10, 35, 70)   # Dark brown glow
+                border_color = (19, 69, 139)  # Brown border
+            else:
+                # Default colors
+                text_color = (0, 0, 255)  # Red
+                glow_color = (50, 0, 0)   # Dark red
+                border_color = (255, 255, 255)  # White border
+            
+            # Simple background with colored border
             cv2.rectangle(display, (x - 30, y - text_size[1] - 20), 
                          (x + text_size[0] + 30, y + 20), (0, 0, 0), -1)
             cv2.rectangle(display, (x - 30, y - text_size[1] - 20), 
-                         (x + text_size[0] + 30, y + 20), (255, 255, 255), 3)
+                         (x + text_size[0] + 30, y + 20), border_color, 3)
             
-            # Simple glow effect
+            # Glow effect with spell color
             cv2.putText(display, spell_text, (x + 2, y + 2), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 2.0, (50, 0, 0), 5, cv2.LINE_AA)
+                       cv2.FONT_HERSHEY_SIMPLEX, 2.0, glow_color, 5, cv2.LINE_AA)
             cv2.putText(display, spell_text, (x, y), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 0, 255), 5, cv2.LINE_AA)
+                       cv2.FONT_HERSHEY_SIMPLEX, 2.0, text_color, 5, cv2.LINE_AA)
         
         # Countdown timer with simple styling
         if countdown is not None and countdown > 0:
@@ -250,21 +276,45 @@ class GameDisplay:
             cv2.putText(display, countdown_text, (countdown_x, countdown_y), 
                        cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
         
-        # Player spell display with simple styling
+        # Player spell display with simple styling - positioned on top of webcam
         if player_spell:
             player_text = f"YOUR SPELL: {player_spell.upper()}"
-            text_size = cv2.getTextSize(player_text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[0]
-            x = self.frame_width - text_size[0] - 60
-            y = self.frame_height - 60
+            text_size = cv2.getTextSize(player_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
             
-            # Simple background
-            cv2.rectangle(display, (x - 15, y - text_size[1] - 10), 
-                         (x + text_size[0] + 15, y + 10), (0, 0, 0), -1)
-            cv2.rectangle(display, (x - 15, y - text_size[1] - 10), 
-                         (x + text_size[0] + 15, y + 10), (0, 255, 0), 2)
+            # Position above webcam (bottom left area) - moved higher
+            x = self.camera_x + 10  # 10 pixels from left edge of webcam
+            y = self.camera_y - 40  # 40 pixels above webcam (moved up from 10)
             
+            # Get spell-specific colors (same as mage)
+            if player_spell.upper() == "FIRE":
+                text_color = (0, 0, 255)  # Red (BGR)
+                glow_color = (50, 0, 0)   # Dark red glow
+                border_color = (0, 0, 255)  # Red border
+            elif player_spell.upper() == "WATER":
+                text_color = (255, 0, 0)  # Blue (BGR)
+                glow_color = (0, 0, 50)   # Dark blue glow
+                border_color = (255, 0, 0)  # Blue border
+            elif player_spell.upper() == "EARTH":
+                text_color = (19, 69, 139)  # Brown (BGR)
+                glow_color = (10, 35, 70)   # Dark brown glow
+                border_color = (19, 69, 139)  # Brown border
+            else:
+                # Default colors
+                text_color = (0, 255, 0)  # Green
+                glow_color = (0, 100, 0)   # Dark green
+                border_color = (0, 255, 0)  # Green border
+            
+            # Simple background with colored border
+            cv2.rectangle(display, (x - 10, y - text_size[1] - 5), 
+                         (x + text_size[0] + 10, y + 5), (0, 0, 0), -1)
+            cv2.rectangle(display, (x - 10, y - text_size[1] - 5), 
+                         (x + text_size[0] + 10, y + 5), border_color, 2)
+            
+            # Glow effect with spell color
+            cv2.putText(display, player_text, (x + 1, y + 1), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.8, glow_color, 2, cv2.LINE_AA)
             cv2.putText(display, player_text, (x, y), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.8, text_color, 2, cv2.LINE_AA)
         
         # Health bars (optimized)
         self.draw_health_bars(display, player_hp, mage_hp)

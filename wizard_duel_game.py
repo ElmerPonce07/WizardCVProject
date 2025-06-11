@@ -98,7 +98,7 @@ while True:
     cv2.putText(ready_display, "Press any key to START", (50, frame_height // 2), 
                cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2, cv2.LINE_AA)
     
-    cv2.imshow("Wizard Duel - Get Ready!", ready_display)
+    cv2.imshow("Wizard Duel", ready_display)
     
     # Use consistent frame timing (120 FPS for 120 FPS lock)
     key = cv2.waitKey(8) & 0xFF  # ~120 FPS
@@ -200,7 +200,7 @@ while player_hp > 0 and mage_hp > 0:
         print("Showing defeat screen...")
         while True:
             defeat_display = game_display.create_win_defeat_screen("player", player_hp, mage_hp, round_num)
-            cv2.imshow("Wizard Duel - Game Over", defeat_display)
+            cv2.imshow("Wizard Duel", defeat_display)
             
             key = cv2.waitKey(8) & 0xFF
             if key == 13:  # Enter key - play again
@@ -225,7 +225,7 @@ while player_hp > 0 and mage_hp > 0:
         print("Showing victory screen...")
         while True:
             victory_display = game_display.create_win_defeat_screen("mage", player_hp, mage_hp, round_num)
-            cv2.imshow("Wizard Duel - Victory!", victory_display)
+            cv2.imshow("Wizard Duel", victory_display)
             
             key = cv2.waitKey(8) & 0xFF
             if key == 13:  # Enter key - play again
