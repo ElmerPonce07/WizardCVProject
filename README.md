@@ -280,4 +280,4 @@ For issues, questions, or contributions:
 
 ---
 
-**Enjoy your magical duels!** 🧙‍♂️⚡
+**Enjoy your magical duels my fellow Wizards!** 
