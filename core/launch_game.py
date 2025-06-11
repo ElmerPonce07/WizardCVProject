@@ -8,12 +8,15 @@ import sys
 import os
 
 def main():
-    print("🎮 Welcome to Wizard Fight! 🎮")
+    print("Welcome to Wizard Fight!")
     print("Loading game...")
     
     try:
+        # Add the parent directory to the path so we can import from ui
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
         # Import and run the main game
-        import wizard_duel_game
+        import ui.wizard_duel_game as wizard_duel_game
         
         # The game will automatically show the title screen first
         # and then proceed with the selected difficulty

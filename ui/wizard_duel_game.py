@@ -1,19 +1,21 @@
 import time
-import socket
 import cv2
 import mediapipe as mp
-from gestureUtils import get_fingers_up, get_spells_from_fingers
-from gameLogic import (
+import sys
+import os
+
+# Add the parent directory to the path so we can import from core and ui
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.gestureUtils import get_fingers_up, get_spells_from_fingers
+from core.gameLogic import (
     evaluate_spell,
     is_game_over,
     get_random_spell,
     get_reaction_time,
 )
-from title_screen import TitleScreen
-from game_display import GameDisplay
-
-UDP_IP = "127.0.0.1"
-UDP_PORT = 5005
+from ui.title_screen import TitleScreen
+from ui.game_display import GameDisplay
 
 # Health Bar Configuration (adapted from main.py)
 MAX_HP = 100
@@ -28,11 +30,6 @@ difficulty = None # Will be set by player
 player_hp = 100
 mage_hp = 100
 round_num = 1
-
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-def send_spell_to_unity(spell):
-    sock.sendto(spell.encode(), (UDP_IP, UDP_PORT))
 
 # Initialize camera first, before title screen
 print("Initializing camera...")
@@ -174,7 +171,6 @@ while player_hp > 0 and mage_hp > 0:
 
     # Now check if player cast a spell within the reaction time
     if player_spell:
-        send_spell_to_unity(player_spell)
         print(f"You cast: {player_spell.upper()}")
     else:
         print("You failed to cast a spell in time!")
@@ -183,15 +179,10 @@ while player_hp > 0 and mage_hp > 0:
     player_hp, mage_hp, round_result_message = evaluate_spell(player_spell, mage_spell, player_hp, mage_hp)
     print(round_result_message)
 
-    # 🔁 Sync updated HP values with Unity
-    send_spell_to_unity(f"PlayerHP:{player_hp}")
-    send_spell_to_unity(f"MageHP:{mage_hp}")
-
     # Check for win/loss
     game_over_status = is_game_over(player_hp, mage_hp)
     if game_over_status == "player":
         print("\nYou have been defeated!")
-        send_spell_to_unity("PlayerDead")
         
         # Set the victory animation (mage wins) before showing screen
         game_display.start_victory_animation()
@@ -216,7 +207,6 @@ while player_hp > 0 and mage_hp > 0:
         break
     elif game_over_status == "mage":
         print("\nThe mage has been defeated! YOU WIN!")
-        send_spell_to_unity("MageDead")
         
         # Set the defeat animation (user wins) before showing screen
         game_display.start_defeat_animation()

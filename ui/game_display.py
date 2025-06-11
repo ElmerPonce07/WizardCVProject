@@ -8,10 +8,10 @@ class GameDisplay:
         self.frame_height = frame_height
         
         # Animation paths
-        self.idle_video_path = "Assets/mageIdle.mkv"
-        self.attack_video_path = "Assets/MageAttack.mkv"
-        self.mage_defeat_video_path = "Assets/mageDefeat.mkv"  # User wins
-        self.mage_victory_video_path = "Assets/mageVictory.mkv"  # Mage wins
+        self.idle_video_path = "assets/mageIdle.mkv"
+        self.attack_video_path = "assets/MageAttack.mkv"
+        self.mage_defeat_video_path = "assets/mageDefeat.mkv"  # User wins
+        self.mage_victory_video_path = "assets/mageVictory.mkv"  # Mage wins
         
         # Video captures
         self.idle_cap = None

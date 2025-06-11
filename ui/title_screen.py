@@ -4,7 +4,7 @@ import time
 
 class TitleScreen:
     def __init__(self):
-        self.idle_video_path = "Assets/mageIdle.mkv"
+        self.idle_video_path = "assets/mageIdle.mkv"
         self.cap = None
         self.frame_width = 800
         self.frame_height = 600
