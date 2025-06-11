@@ -134,16 +134,22 @@ class GameDisplay:
         if animation_frame is not None:
             display = animation_frame.copy()
         
-        # Resize and place user camera in bottom left
+        # Resize and place user camera in bottom left with optimized styling
         if camera_frame is not None:
             camera_resized = cv2.resize(camera_frame, (self.camera_width, self.camera_height))
             # Draw hand tracking on the user camera if landmarks are provided
             if hand_landmarks is not None and mp_draw is not None and mp_hands is not None:
                 for handLms in hand_landmarks:
                     mp_draw.draw_landmarks(camera_resized, handLms, mp_hands.HAND_CONNECTIONS)
+            
+            # Place camera frame
             display[self.camera_y:self.camera_y + self.camera_height, 
                    self.camera_x:self.camera_x + self.camera_width] = camera_resized
-            # Add border around camera
+            
+            # Simple modern border
+            cv2.rectangle(display, (self.camera_x - 3, self.camera_y - 3), 
+                         (self.camera_x + self.camera_width + 3, self.camera_y + self.camera_height + 3), 
+                         (100, 100, 150), 1)
             cv2.rectangle(display, (self.camera_x - 2, self.camera_y - 2), 
                          (self.camera_x + self.camera_width + 2, self.camera_y + self.camera_height + 2), 
                          (255, 255, 255), 2)
@@ -154,52 +160,88 @@ class GameDisplay:
         return display
     
     def draw_game_ui(self, display, mage_spell, player_spell, countdown, player_hp, mage_hp, round_num):
-        """Draw all UI elements on the display"""
+        """Draw all UI elements on the display with optimized modern styling"""
         
-        # Round number
-        cv2.putText(display, f"ROUND {round_num}", (50, 60), 
+        # Round number with simple glow effect
+        round_text = f"ROUND {round_num}"
+        round_x = 50
+        round_y = 60
+        
+        # Simple glow effect for round number
+        cv2.putText(display, round_text, (round_x + 2, round_y + 2), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1.5, (100, 100, 150), 3, cv2.LINE_AA)
+        cv2.putText(display, round_text, (round_x, round_y), 
                    cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 3, cv2.LINE_AA)
         
-        # Mage spell announcement - make it very prominent
+        # Mage spell announcement - optimized but still prominent
         if mage_spell:
             spell_text = f"MAGE CASTS: {mage_spell.upper()}"
-            # Add large background rectangle for maximum visibility
             text_size = cv2.getTextSize(spell_text, cv2.FONT_HERSHEY_SIMPLEX, 2.0, 5)[0]
-            # Position in center-top area for maximum visibility
             x = (self.frame_width - text_size[0]) // 2
             y = 150
             
-            # Large black background with white border
+            # Simple background with border
             cv2.rectangle(display, (x - 30, y - text_size[1] - 20), 
                          (x + text_size[0] + 30, y + 20), (0, 0, 0), -1)
             cv2.rectangle(display, (x - 30, y - text_size[1] - 20), 
                          (x + text_size[0] + 30, y + 20), (255, 255, 255), 3)
             
-            # Draw the text in bright red
+            # Simple glow effect
+            cv2.putText(display, spell_text, (x + 2, y + 2), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 2.0, (50, 0, 0), 5, cv2.LINE_AA)
             cv2.putText(display, spell_text, (x, y), 
                        cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 0, 255), 5, cv2.LINE_AA)
         
-        # Countdown timer (accurate and visually clear)
+        # Countdown timer with simple styling
         if countdown is not None and countdown > 0:
-            cv2.putText(display, f"Counter in: {countdown:.1f}s", (50, 250), 
+            countdown_text = f"Counter in: {countdown:.1f}s"
+            countdown_size = cv2.getTextSize(countdown_text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 3)[0]
+            countdown_x = 50
+            countdown_y = 250
+            
+            # Simple background
+            cv2.rectangle(display, (countdown_x - 10, countdown_y - countdown_size[1] - 10), 
+                         (countdown_x + countdown_size[0] + 10, countdown_y + 10), (0, 0, 0), -1)
+            cv2.rectangle(display, (countdown_x - 10, countdown_y - countdown_size[1] - 10), 
+                         (countdown_x + countdown_size[0] + 10, countdown_y + 10), (255, 255, 0), 2)
+            
+            cv2.putText(display, countdown_text, (countdown_x, countdown_y), 
                        cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 0), 3, cv2.LINE_AA)
         elif countdown is not None:
-            cv2.putText(display, f"Counter in: 0.0s", (50, 250), 
+            countdown_text = f"Counter in: 0.0s"
+            countdown_size = cv2.getTextSize(countdown_text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 3)[0]
+            countdown_x = 50
+            countdown_y = 250
+            
+            # Simple background
+            cv2.rectangle(display, (countdown_x - 10, countdown_y - countdown_size[1] - 10), 
+                         (countdown_x + countdown_size[0] + 10, countdown_y + 10), (0, 0, 0), -1)
+            cv2.rectangle(display, (countdown_x - 10, countdown_y - countdown_size[1] - 10), 
+                         (countdown_x + countdown_size[0] + 10, countdown_y + 10), (0, 0, 255), 2)
+            
+            cv2.putText(display, countdown_text, (countdown_x, countdown_y), 
                        cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
         
-        # Player spell display (move to bottom right)
+        # Player spell display with simple styling
         if player_spell:
             player_text = f"YOUR SPELL: {player_spell.upper()}"
             text_size = cv2.getTextSize(player_text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[0]
             x = self.frame_width - text_size[0] - 60
             y = self.frame_height - 60
+            
+            # Simple background
+            cv2.rectangle(display, (x - 15, y - text_size[1] - 10), 
+                         (x + text_size[0] + 15, y + 10), (0, 0, 0), -1)
+            cv2.rectangle(display, (x - 15, y - text_size[1] - 10), 
+                         (x + text_size[0] + 15, y + 10), (0, 255, 0), 2)
+            
             cv2.putText(display, player_text, (x, y), 
                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
         
-        # Health bars (always visible, top left and right)
+        # Health bars (optimized)
         self.draw_health_bars(display, player_hp, mage_hp)
         
-        # Instructions (move to bottom right)
+        # Instructions with simple styling
         instructions = [
             "Use hand gestures to cast spells!",
             "Press Q to quit"
@@ -208,49 +250,74 @@ class GameDisplay:
             text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 1)[0]
             x = self.frame_width - text_size[0] - 60
             y = self.frame_height - 30 + i * 25
+            
+            # Simple semi-transparent background
+            cv2.rectangle(display, (x - 10, y - text_size[1] - 5), 
+                         (x + text_size[0] + 10, y + 5), (30, 30, 60), -1)
+            
             cv2.putText(display, text, (x, y), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (200, 200, 200), 1, cv2.LINE_AA)
     
     def draw_health_bars(self, display, player_hp, mage_hp):
-        """Draw health bars for both player and mage"""
+        """Draw optimized health bars for both player and mage"""
         bar_width = 350
         bar_height = 35
         max_hp = 100
         
-        # Player health bar (top right)
+        # Player health bar (top right) with simple styling
         player_x = self.frame_width - bar_width - 40
         player_y = 30
         
-        # Background
+        # Simple background
         cv2.rectangle(display, (player_x, player_y), (player_x + bar_width, player_y + bar_height), 
                      (60, 60, 60), -1)
-        # Health
+        
+        # Health fill
         current_width = int(bar_width * (max(0, player_hp) / max_hp))
         cv2.rectangle(display, (player_x, player_y), (player_x + current_width, player_y + bar_height), 
                      (0, 255, 0), -1)
+        
+        # Simple glow effect
+        cv2.rectangle(display, (player_x - 2, player_y - 2), (player_x + bar_width + 2, player_y + bar_height + 2), 
+                     (0, 100, 0), 1)
+        
         # Border
         cv2.rectangle(display, (player_x, player_y), (player_x + bar_width, player_y + bar_height), 
                      (255, 255, 255), 2)
-        # Text
-        cv2.putText(display, f"PLAYER: {max(0, player_hp)}/{max_hp}", (player_x + 10, player_y + bar_height - 7), 
+        
+        # Text with simple glow
+        text = f"PLAYER: {max(0, player_hp)}/{max_hp}"
+        cv2.putText(display, text, (player_x + 10 + 1, player_y + bar_height - 7 + 1), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 100, 0), 2)
+        cv2.putText(display, text, (player_x + 10, player_y + bar_height - 7), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
         
-        # Mage health bar (top left)
+        # Mage health bar (top left) with simple styling
         mage_x = 40
         mage_y = 30
         
-        # Background
+        # Simple background
         cv2.rectangle(display, (mage_x, mage_y), (mage_x + bar_width, mage_y + bar_height), 
                      (60, 60, 60), -1)
-        # Health
+        
+        # Health fill
         current_width = int(bar_width * (max(0, mage_hp) / max_hp))
         cv2.rectangle(display, (mage_x, mage_y), (mage_x + current_width, mage_y + bar_height), 
                      (0, 0, 255), -1)
+        
+        # Simple glow effect
+        cv2.rectangle(display, (mage_x - 2, mage_y - 2), (mage_x + bar_width + 2, mage_y + bar_height + 2), 
+                     (0, 0, 100), 1)
+        
         # Border
         cv2.rectangle(display, (mage_x, mage_y), (mage_x + bar_width, mage_y + bar_height), 
                      (255, 255, 255), 2)
-        # Text
-        cv2.putText(display, f"MAGE: {max(0, mage_hp)}/{max_hp}", (mage_x + 10, mage_y + bar_height - 7), 
+        
+        # Text with simple glow
+        text = f"MAGE: {max(0, mage_hp)}/{max_hp}"
+        cv2.putText(display, text, (mage_x + 10 + 1, mage_y + bar_height - 7 + 1), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 100), 2)
+        cv2.putText(display, text, (mage_x + 10, mage_y + bar_height - 7), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
     
     def cleanup(self):
