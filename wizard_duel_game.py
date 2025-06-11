@@ -10,7 +10,6 @@ from gameLogic import (
     get_reaction_time,
 )
 
-
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
 
@@ -32,15 +31,14 @@ mp_draw = mp.solutions.drawing_utils
 print("Wizard Duel Begins!\nPress Q to QUIT.")
 reaction_time = get_reaction_time(difficulty)
 
-while player_hp > 0 and mage_hp > 0 :
-    print (f"\n ROUND {round_num}")
-    print (f"Mage HP: {mage_hp} | YOUR HP: {player_hp}")
+while player_hp > 0 and mage_hp > 0:
+    print(f"\nROUND {round_num}")
+    print(f"Mage HP: {mage_hp} | YOUR HP: {player_hp}")
     
     mage_spell = get_random_spell()
-    print (f"The mage casts: {mage_spell.upper()}! Counter it!")
+    print(f"The mage casts: {mage_spell.upper()}! Counter it!")
 
-
-    player_spell = None 
+    player_spell = None
     start_time = time.time()
 
     while time.time() - start_time < reaction_time:
@@ -49,6 +47,7 @@ while player_hp > 0 and mage_hp > 0 :
             print("Failed to grab frame from camera.")
             player_hp = 0
             break
+
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         results = hands.process(img_rgb)
 
@@ -60,9 +59,10 @@ while player_hp > 0 and mage_hp > 0 :
                 if spell:
                     player_spell = spell
                     break
+
         cv2.imshow("Wizard Duel - Cast YOUR SPELL!", img)
         if cv2.waitKey(1) & 0xFF == ord('q'):
-            player_hp=0
+            player_hp = 0
             break
 
     cv2.destroyAllWindows()
@@ -73,11 +73,16 @@ while player_hp > 0 and mage_hp > 0 :
     elif player_hp > 0:
         print("You failed to cast a spell in time!")
 
+    # Evaluate the round
     player_hp, mage_hp, round_result_message = evaluate_spell(player_spell, mage_spell, player_hp, mage_hp)
     print(round_result_message)
 
-    game_over_status = is_game_over(player_hp, mage_hp)
+    # 🔁 Sync updated HP values with Unity
+    send_spell_to_unity(f"PlayerHP:{player_hp}")
+    send_spell_to_unity(f"MageHP:{mage_hp}")
 
+    # Check for win/loss
+    game_over_status = is_game_over(player_hp, mage_hp)
     if game_over_status == "player":
         print("\nYou have been defeated!")
         send_spell_to_unity("PlayerDead")
@@ -86,7 +91,7 @@ while player_hp > 0 and mage_hp > 0 :
         print("\nThe mage has been defeated! YOU WIN!")
         send_spell_to_unity("MageDead")
         break
-    
+
     round_num += 1
     time.sleep(1.2)
 
